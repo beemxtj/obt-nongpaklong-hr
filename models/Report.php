@@ -1,18 +1,29 @@
 <?php
 // models/Report.php
 
+<<<<<<< HEAD
 class Report
 {
     private $conn;
 
     public function __construct($db)
     {
+=======
+class Report {
+    private $conn;
+
+    public function __construct($db) {
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         $this->conn = $db;
     }
 
     // ดึงและประมวลผลข้อมูลสรุปการลงเวลา
+<<<<<<< HEAD
     public function getAttendanceSummary($month, $year)
     {
+=======
+    public function getAttendanceSummary($month, $year) {
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         // 1. ดึงรายชื่อพนักงานทั้งหมดที่ยังทำงานอยู่
         $query_employees = "SELECT id, employee_code, CONCAT(prefix, first_name_th, ' ', last_name_th) as full_name 
                             FROM employees 
@@ -55,6 +66,7 @@ class Report
 
         return $summary_data;
     }
+<<<<<<< HEAD
     // ===== ฟังก์ชันใหม่: ดึงข้อมูลใบลงเวลารายเดือน =====
     public function getMonthlyTimesheet($employee_id, $month, $year)
     {
@@ -238,3 +250,7 @@ class Report
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
+=======
+}
+?>
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335

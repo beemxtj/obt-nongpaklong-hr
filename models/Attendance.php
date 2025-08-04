@@ -1,8 +1,13 @@
 <?php
+<<<<<<< HEAD
 // models/Attendance.php - Enhanced version with role-based access
 
 require_once __DIR__ . '/Setting.php';
 require_once __DIR__ . '/Employee.php';
+=======
+// models/Attendance.php
+require_once __DIR__ . '/Setting.php';
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 
 class Attendance {
     private $conn;
@@ -20,8 +25,11 @@ class Attendance {
     public $clock_in_image_path;
     public $clock_out_image_path;
     public $status;
+<<<<<<< HEAD
     public $work_hours;
     public $ot_hours;
+=======
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 
     // Properties for handling data from controller
     public $clock_in_image_data;
@@ -44,10 +52,21 @@ class Attendance {
         }
 
         list($img_type, $data) = explode(';', $base64_string);
+<<<<<<< HEAD
         list(, $data) = explode(',', $data);
         $data = base64_decode($data);
 
         $upload_dir = __DIR__ . '/../uploads/attendance/';
+=======
+        list(, $data)      = explode(',', $data);
+        $data = base64_decode($data);
+
+        // ===== จุดที่แก้ไข: แก้ไขเส้นทางไปยังโฟลเดอร์ uploads =====
+        // จาก __DIR__ . '/../../uploads/attendance/'
+        // เป็น __DIR__ . '/../uploads/attendance/'
+        $upload_dir = __DIR__ . '/../uploads/attendance/';
+        
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         if (!is_dir($upload_dir)) {
             mkdir($upload_dir, 0777, true);
         }
@@ -66,21 +85,47 @@ class Attendance {
      * Creates a new clock-in record.
      * @return bool True on success, false on failure.
      */
+<<<<<<< HEAD
+=======
+    // ===== ฟังก์ชันบันทึกเวลาเข้างาน (แก้ไข) =====
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     public function createClockIn() {
         if ($this->hasClockedInToday()) {
             return false;
         }
 
+<<<<<<< HEAD
+=======
+        // --- ส่วนที่เพิ่ม: ตรรกะการคำนวณสถานะมาสาย ---
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         $setting = new Setting($this->conn);
         $work_start_time_str = $setting->getSettingValue('work_start_time', '08:30');
         $grace_period_minutes = (int)$setting->getSettingValue('grace_period_minutes', 15);
 
+<<<<<<< HEAD
         $clock_in_datetime = new DateTime();
         $allowed_late_datetime = new DateTime(date('Y-m-d') . ' ' . $work_start_time_str);
         $allowed_late_datetime->modify("+{$grace_period_minutes} minutes");
 
         $this->status = ($clock_in_datetime > $allowed_late_datetime) ? 'สาย' : 'ปกติ';
         
+=======
+        // สร้าง object เวลาเข้างานจริง
+        $clock_in_datetime = new DateTime();
+        
+        // สร้าง object เวลาเข้างานที่อนุโลมให้สายได้
+        $allowed_late_datetime = new DateTime(date('Y-m-d') . ' ' . $work_start_time_str);
+        $allowed_late_datetime->modify("+{$grace_period_minutes} minutes");
+
+        // เปรียบเทียบเวลา
+        if ($clock_in_datetime > $allowed_late_datetime) {
+            $this->status = 'สาย';
+        } else {
+            $this->status = 'ปกติ';
+        }
+        // -----------------------------------------
+
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         $image_path = $this->saveBase64Image($this->clock_in_image_data, $this->employee_id, 'in');
 
         $query = "INSERT INTO " . $this->table_name . "
@@ -90,7 +135,11 @@ class Attendance {
                 clock_in_latitude = :latitude,
                 clock_in_longitude = :longitude,
                 clock_in_image_path = :image_path,
+<<<<<<< HEAD
                 status = :status";
+=======
+                status = :status"; // ใช้ status ที่คำนวณได้
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 
         $stmt = $this->conn->prepare($query);
 
@@ -98,11 +147,16 @@ class Attendance {
         $stmt->bindParam(":latitude", $this->clock_in_latitude);
         $stmt->bindParam(":longitude", $this->clock_in_longitude);
         $stmt->bindParam(":image_path", $image_path);
+<<<<<<< HEAD
         $stmt->bindParam(":status", $this->status);
+=======
+        $stmt->bindParam(":status", $this->status); // Bind status ใหม่
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 
         return $stmt->execute();
     }
 
+<<<<<<< HEAD
     /**
      * Creates a new clock-out record for today.
      * @return bool True on success, false on failure.
@@ -111,16 +165,35 @@ class Attendance {
         $today_log_stmt = $this->getTodayAttendance($this->employee_id);
         if ($today_log_stmt->rowCount() == 0) {
             return false;
+=======
+    // ===== ฟังก์ชันบันทึกเวลาออกงาน (แก้ไข) =====
+    public function createClockOut() {
+        // --- ส่วนที่เพิ่ม: ตรรกะการคำนวณชั่วโมงทำงาน ---
+        $today_log_stmt = $this->getTodayAttendance($this->employee_id);
+        if ($today_log_stmt->rowCount() == 0) {
+            return false; // ไม่พบรายการเข้างานของวันนี้
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         }
         $today_log = $today_log_stmt->fetch(PDO::FETCH_ASSOC);
         
         $clock_in_dt = new DateTime($today_log['clock_in_time']);
+<<<<<<< HEAD
         $clock_out_dt = new DateTime();
 
         $interval = $clock_in_dt->diff($clock_out_dt);
         $work_minutes = ($interval->h * 60) + $interval->i;
         $work_hours = round($work_minutes / 60, 2);
 
+=======
+        $clock_out_dt = new DateTime(); // เวลาปัจจุบันคือเวลาออกงาน
+
+        $interval = $clock_in_dt->diff($clock_out_dt);
+        $work_minutes = ($interval->h * 60) + $interval->i;
+        $work_hours = round($work_minutes / 60, 2); // แปลงเป็นชั่วโมงทศนิยม
+        // -----------------------------------------
+
+        // --- ส่วนที่เพิ่ม: ตรรกะการคำนวณ OT ---
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         $setting = new Setting($this->conn);
         $ot_start_time_str = $setting->getSettingValue('ot_start_time', '18:00');
         $ot_start_datetime = new DateTime(date('Y-m-d') . ' ' . $ot_start_time_str);
@@ -130,6 +203,10 @@ class Attendance {
             $ot_minutes = ($ot_interval->h * 60) + $ot_interval->i;
             $ot_hours = round($ot_minutes / 60, 2);
         }
+<<<<<<< HEAD
+=======
+        // ------------------------------------
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 
         $image_path = $this->saveBase64Image($this->clock_out_image_data, $this->employee_id, 'out');
 
@@ -139,7 +216,11 @@ class Attendance {
                 clock_out_latitude = :latitude,
                 clock_out_longitude = :longitude,
                 clock_out_image_path = :image_path,
+<<<<<<< HEAD
                 work_hours = :work_hours,
+=======
+                work_hours = :work_hours, -- เพิ่มการบันทึกชั่วโมงทำงาน
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
                 ot_hours = :ot_hours
             WHERE
                 id = :id AND clock_out_time IS NULL";
@@ -190,6 +271,7 @@ class Attendance {
      * @return PDOStatement The statement object.
      */
     public function readHistoryByEmployee($employee_id) {
+<<<<<<< HEAD
         $query = "SELECT 
             al.*,
             e.employee_code,
@@ -204,12 +286,18 @@ class Attendance {
         LEFT JOIN positions p ON e.position_id = p.id
         WHERE al.employee_id = ? 
         ORDER BY al.clock_in_time DESC";
+=======
+        $query = "SELECT * FROM " . $this->table_name . " 
+                  WHERE employee_id = ? 
+                  ORDER BY clock_in_time DESC";
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(1, $employee_id);
         $stmt->execute();
         return $stmt;
     }
+<<<<<<< HEAD
 
     /**
      * Gets attendance overview for all employees (Admin/HR only)
@@ -530,3 +618,7 @@ class Attendance {
     }
 }
 ?>
+=======
+}
+?>
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335

@@ -8,6 +8,7 @@ class Leave
     private $leave_types_table = "leave_types";
 
     // Properties
+<<<<<<< HEAD
     public $id;
     public $employee_id;
     public $leave_type_id;
@@ -16,16 +17,23 @@ class Leave
     public $reason;
     public $status;
     public $attachment_path;
+=======
+    public $id, $employee_id, $leave_type_id, $start_date, $end_date, $reason, $status, $attachment_path;
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 
     public function __construct($db)
     {
         $this->conn = $db;
     }
 
+<<<<<<< HEAD
     /**
      * ดึงข้อมูลประเภทการลาทั้งหมด
      * @return PDOStatement
      */
+=======
+    // ดึงข้อมูลประเภทการลาทั้งหมด
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     public function getLeaveTypes()
     {
         $query = "SELECT * FROM " . $this->leave_types_table . " ORDER BY name ASC";
@@ -34,11 +42,17 @@ class Leave
         return $stmt;
     }
 
+<<<<<<< HEAD
     /**
      * สร้างคำขอการลาใหม่
      * @return bool
      */
     public function createLeaveRequest() {
+=======
+    // สร้างคำขอการลาใหม่
+    public function createLeaveRequest() {
+        // ===== จุดที่แก้ไข: เพิ่มฟิลด์ attachment_path ใน query =====
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         $query = "INSERT INTO " . $this->leave_requests_table . "
             SET
                 employee_id = :employee_id,
@@ -65,6 +79,10 @@ class Leave
         $stmt->bindParam(":start_date", $this->start_date);
         $stmt->bindParam(":end_date", $this->end_date);
         $stmt->bindParam(":reason", $this->reason);
+<<<<<<< HEAD
+=======
+        // ===== จุดที่แก้ไข: Bind parameter ใหม่ =====
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         $stmt->bindParam(":attachment_path", $this->attachment_path);
         
         if ($stmt->execute()) {
@@ -73,11 +91,15 @@ class Leave
         return false;
     }
 
+<<<<<<< HEAD
     /**
      * ดึงประวัติการลาของพนักงาน
      * @param int $employee_id
      * @return PDOStatement
      */
+=======
+    // เพิ่มฟังก์ชัน readHistoryByEmployee()
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     public function readHistoryByEmployee($employee_id)
     {
         $query = "SELECT lr.*, lt.name as leave_type_name 
@@ -92,10 +114,14 @@ class Leave
         return $stmt;
     }
 
+<<<<<<< HEAD
     /**
      * ดึงข้อมูลใบลา 1 รายการ
      * @return array|null
      */
+=======
+    // ===== ฟังก์ชันใหม่ที่เพิ่มเข้ามา: ดึงข้อมูลใบลา 1 รายการ =====
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     public function readOne() {
         $query = "SELECT * FROM " . $this->leave_requests_table . " WHERE id = ? LIMIT 0,1";
 
@@ -113,17 +139,26 @@ class Leave
             $this->reason = $row['reason'];
             $this->status = $row['status'];
             $this->attachment_path = $row['attachment_path'];
+<<<<<<< HEAD
+=======
+            
+            // คืนค่าข้อมูลแถวเพื่อให้ Controller นำไปใช้ต่อได้
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
             return $row;
         }
 
         return null;
     }
 
+<<<<<<< HEAD
     /**
      * ดึงคำขอที่รออนุมัติโดยหัวหน้างาน
      * @param int $supervisor_id
      * @return PDOStatement
      */
+=======
+    // ===== ฟังก์ชันใหม่: ดึงคำขอที่รออนุมัติโดยหัวหน้างาน =====
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     public function getPendingRequestsBySupervisor($supervisor_id) {
         $query = "SELECT 
                     lr.id, 
@@ -147,16 +182,24 @@ class Leave
         return $stmt;
     }
 
+<<<<<<< HEAD
     /**
      * อัปเดตสถานะการลา
      * @param string $status
      * @return bool
      */
+=======
+    // ===== ฟังก์ชันใหม่: อัปเดตสถานะการลา =====
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     public function updateStatus($status) {
         $query = "UPDATE " . $this->leave_requests_table . " SET status = :status WHERE id = :id";
         
         $stmt = $this->conn->prepare($query);
         
+<<<<<<< HEAD
+=======
+        // Bind data
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         $stmt->bindParam(':status', $status);
         $stmt->bindParam(':id', $this->id);
         
@@ -166,6 +209,7 @@ class Leave
         return false;
     }
 
+<<<<<<< HEAD
     /**
      * ยกเลิกคำขอการลาโดยพนักงาน
      * @param int $leaveRequestId ID ของใบลาที่ต้องการยกเลิก
@@ -196,10 +240,14 @@ class Leave
      * @param int $employee_id
      * @return array
      */
+=======
+        // ===== ฟังก์ชันใหม่: คำนวณยอดวันลาคงเหลือ =====
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     public function getLeaveBalances($employee_id) {
         $balances = [];
         $current_year = date('Y');
 
+<<<<<<< HEAD
         // 1. ดึงประเภทการลาทั้งหมดพร้อมโควต้าจากตาราง leave_types
         $leave_types_stmt = $this->getLeaveTypes();
         
@@ -228,17 +276,50 @@ class Leave
                 'days_used' => (int)$days_used,
                 'remaining' => (int)$type['max_days_per_year'] - (int)$days_used,
                 'icon' => $this->getLeaveIcon($type['name'])
+=======
+        // 1. Get all leave types
+        $leave_types_stmt = $this->getLeaveTypes();
+        
+        while ($type = $leave_types_stmt->fetch(PDO::FETCH_ASSOC)) {
+            // 2. For each type, calculate used days for the current year
+            $query = "SELECT SUM(DATEDIFF(DATE(end_date), DATE(start_date)) + 1) as days_used 
+                      FROM " . $this->leave_requests_table . "
+                      WHERE employee_id = :employee_id 
+                        AND leave_type_id = :leave_type_id
+                        AND status = 'อนุมัติ'
+                        AND YEAR(start_date) = :year";
+            
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':employee_id', $employee_id);
+            $stmt->bindParam(':leave_type_id', $type['id']);
+            $stmt->bindParam(':year', $current_year);
+            $stmt->execute();
+            
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            $days_used = $result['days_used'] ?? 0;
+            
+            $balances[] = [
+                'name' => $type['name'],
+                'max_days' => $type['max_days_per_year'],
+                'days_used' => (int)$days_used,
+                'remaining' => $type['max_days_per_year'] - (int)$days_used,
+                'icon' => $this->getLeaveIcon($type['name']) // Helper for icon
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
             ];
         }
         
         return $balances;
     }
 
+<<<<<<< HEAD
     /**
      * ฟังก์ชันเสริมสำหรับแสดงไอคอนตามประเภทการลา
      * @param string $leave_name
      * @return string
      */
+=======
+    // Helper function to get an icon based on leave type name
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     private function getLeaveIcon($leave_name) {
         if (strpos($leave_name, 'ป่วย') !== false) return 'fas fa-pills text-blue-500';
         if (strpos($leave_name, 'กิจ') !== false) return 'fas fa-briefcase text-green-500';
@@ -247,6 +328,7 @@ class Leave
         if (strpos($leave_name, 'อุปสมบท') !== false) return 'fas fa-praying-hands text-orange-500';
         return 'fas fa-calendar-alt text-gray-500';
     }
+<<<<<<< HEAD
 
 /**
      * ดึงประวัติการลาทั้งหมดในระบบ (สำหรับ Admin/HR)
@@ -268,5 +350,7 @@ class Leave
         $stmt->execute();
         return $stmt;
     }
+=======
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 }
 ?>

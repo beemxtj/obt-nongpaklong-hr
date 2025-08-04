@@ -4,9 +4,13 @@
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../models/Attendance.php';
 require_once __DIR__ . '/../models/Leave.php';
+<<<<<<< HEAD
 require_once __DIR__ . '/../models/Dashboard.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../models/Report.php';
+=======
+require_once __DIR__ . '/../config/database.php';
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 
 class DashboardController {
 
@@ -16,6 +20,7 @@ class DashboardController {
     }
 
     public function index() {
+<<<<<<< HEAD
         $database = new Database();
         $db = $database->getConnection();
         $userId = $_SESSION['user_id'];
@@ -79,3 +84,25 @@ class DashboardController {
     }
 }
 ?>
+=======
+        $userName = $_SESSION['user_name'] ?? 'ผู้ใช้งาน';
+        $userId = $_SESSION['user_id'];
+
+        $database = new Database();
+        $db = $database->getConnection();
+        
+        // ดึงข้อมูลการลงเวลา
+        $attendance = new Attendance($db);
+        $today_attendance_stmt = $attendance->getTodayAttendance($userId);
+        $today_log = $today_attendance_stmt->fetch(PDO::FETCH_ASSOC);
+
+        // ===== จุดที่แก้ไข: ดึงข้อมูลวันลาคงเหลือ =====
+        $leave = new Leave($db);
+        $leave_balances = $leave->getLeaveBalances($userId);
+        // ===========================================
+
+        require_once 'views/dashboard/index.php';
+    }
+}
+?>
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335

@@ -3,8 +3,11 @@
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../models/Report.php';
+<<<<<<< HEAD
 require_once __DIR__ . '/../models/Employee.php';
 require_once __DIR__ . '/../models/Leave.php';
+=======
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 require_once __DIR__ . '/../config/database.php';
 
 class ReportController {
@@ -43,6 +46,7 @@ class ReportController {
 
         require_once 'views/reports/attendance.php';
     }
+<<<<<<< HEAD
     // ===== แสดงหน้ารายงานใบลงเวลา =====
     public function timesheet() {
         $page_title = "รายงานใบลงเวลาทำงาน";
@@ -186,3 +190,7 @@ class ReportController {
     }
 }
 ?>
+=======
+}
+?>
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335

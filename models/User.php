@@ -14,6 +14,7 @@ class User {
     public $first_name_th;
     public $role_id;
 
+<<<<<<< HEAD
     /**
      * Line user ID associated with the employee.
      *
@@ -28,6 +29,8 @@ class User {
      */
     public $line_user_id;
 
+=======
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     // Constructor with $db as database connection
     public function __construct($db) {
         $this->conn = $db;
@@ -35,6 +38,7 @@ class User {
 
     // ค้นหาผู้ใช้ด้วยอีเมล
     function findByEmail() {
+<<<<<<< HEAD
         // ===== จุดที่แก้ไข: JOIN ตาราง roles เพื่อดึง permissions =====
         $query = "SELECT
                     e.id, e.employee_code, e.password, e.first_name_th, e.role_id, r.permissions
@@ -131,5 +135,28 @@ class User {
         $stmt->bindParam(':id', $employeeId);
         return $stmt->execute();
     }
+=======
+        // Query to read single record
+        $query = "SELECT
+                    id, employee_code, password, first_name_th, role_id
+                FROM
+                    " . $this->table_name . "
+                WHERE
+                    email = :email
+                LIMIT
+                    0,1";
+
+        // Prepare query statement
+        $stmt = $this->conn->prepare($query);
+
+        // Bind email
+        $stmt->bindParam(':email', $this->email);
+
+        // Execute query
+        $stmt->execute();
+
+        return $stmt;
+    }
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 }
 ?>

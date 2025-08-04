@@ -1,5 +1,6 @@
 <?php
 // views/layouts/header.php
+<<<<<<< HEAD
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
@@ -50,12 +51,18 @@ $header_bg_color = $system_settings['header_bg_color'] ?? '#ffffff';
 // ตรวจสอบว่าเป็นหน้าที่มีธีมเข้ม
 $is_dark_header = (strtolower($header_bg_color) === '#1f2937' || strtolower($header_bg_color) === '#111827');
 $text_color = $is_dark_header ? '#ffffff' : '#1f2937';
+=======
+if (session_status() == PHP_SESSION_NONE) { session_start(); }
+if (!defined('BASE_URL')) { require_once __DIR__ . '/../../config/app.php'; }
+if (!isset($_SESSION['user_id'])) { header('Location: ' . BASE_URL . '/login'); exit(); }
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
     <title><?php echo htmlspecialchars($page_title ?? $org_name); ?></title>
     
     <!-- Favicon -->
@@ -63,6 +70,9 @@ $text_color = $is_dark_header ? '#ffffff' : '#1f2937';
     <link rel="icon" type="image/x-icon" href="<?php echo BASE_URL . '/' . $favicon; ?>">
     <link rel="shortcut icon" type="image/x-icon" href="<?php echo BASE_URL . '/' . $favicon; ?>">
     <?php endif; ?>
+=======
+    <title><?php echo htmlspecialchars($page_title ?? 'HRM อบต.หนองปากโลง'); ?></title>
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -75,6 +85,7 @@ $text_color = $is_dark_header ? '#ffffff' : '#1f2937';
     <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
+<<<<<<< HEAD
     <!-- Color Picker -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.1/spectrum.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.1/spectrum.min.js"></script>
@@ -315,3 +326,11 @@ window.systemSettings = {
 </script>
 
 
+=======
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        .btn-gradient { background-image: linear-gradient(to right, #4f46e5, #7c3aed); }
+    </style>
+</head>
+<body class="bg-gray-100">
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335

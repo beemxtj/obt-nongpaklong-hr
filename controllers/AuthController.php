@@ -5,6 +5,7 @@
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../models/User.php';
+<<<<<<< HEAD
 require_once __DIR__ . '/../models/AuditLog.php';
 require_once __DIR__ . '/../models/Setting.php'; // เพิ่มการเรียกใช้ Setting Model
 
@@ -28,10 +29,23 @@ class AuthController
     public function index()
     {
         // ถ้าล็อกอินอยู่แล้ว ให้ redirect ไปหน้า dashboard
+=======
+
+class AuthController {
+
+    // แสดงหน้าฟอร์ม Login
+    public function index() {
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        // ถ้า login อยู่แล้ว ให้ redirect ไปหน้า dashboard
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
         if (isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_URL . '/dashboard');
             exit();
         }
+<<<<<<< HEAD
 
         // ดึงข้อมูลการตั้งค่าระบบสำหรับหน้า Login
         $setting = new Setting($this->db);
@@ -48,6 +62,23 @@ class AuthController
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = new User($this->db);
+=======
+        require_once 'views/auth/login.php';
+    }
+
+    // ประมวลผลการ Login
+    public function login() {
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $database = new Database();
+            $db = $database->getConnection();
+
+            $user = new User($db);
+
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
             $user->email = $_POST['email'];
             $password = $_POST['password'];
 
@@ -55,6 +86,7 @@ class AuthController
 
             if ($stmt->rowCount() > 0) {
                 $row = $stmt->fetch(PDO::FETCH_ASSOC);
+<<<<<<< HEAD
 
                 // ตรวจสอบสถานะผู้ใช้ (ถ้ามีคอลัมน์ status)
                 if (isset($row['status']) && $row['status'] !== 'active') {
@@ -69,17 +101,30 @@ class AuthController
                     $auditLog = new AuditLog($this->db);
                     $auditLog->log('login_success', 'User logged in successfully via email.', $row['id']);
                     
+=======
+                
+                if (password_verify($password, $row['password'])) {
+                    $_SESSION['user_id'] = $row['id'];
+                    $_SESSION['user_name'] = $row['first_name_th'];
+                    $_SESSION['role_id'] = $row['role_id'];
+
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
                     header('Location: ' . BASE_URL . '/dashboard');
                     exit();
                 }
             }
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
             $_SESSION['error'] = "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
             header('Location: ' . BASE_URL . '/login');
             exit();
         }
     }
 
+<<<<<<< HEAD
     /**
      * Redirect ผู้ใช้ไปหน้า LINE Login
      */
@@ -268,3 +313,21 @@ class AuthController
         $_SESSION['permissions'] = $userData['permissions'] ?? '[]';
     }
 }
+=======
+    // ===== ฟังก์ชันสำหรับออกจากระบบ =====
+    public function logout() {
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        // ทำลายข้อมูล session ทั้งหมด
+        session_unset();
+        session_destroy();
+
+        // ส่งผู้ใช้กลับไปที่หน้า Login
+        header('Location: ' . BASE_URL . '/login');
+        exit();
+    }
+}
+?>
+>>>>>>> ff710bbc79b0f85632a2e802010cfe13a0b48335
