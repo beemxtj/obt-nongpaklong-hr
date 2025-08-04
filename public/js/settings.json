@@ -1,0 +1,874 @@
+/**
+ * Settings Management JavaScript
+ * Complete functionality for HRM Settings with Role-based Access Control
+ */
+
+class SettingsManager {
+    constructor() {
+        this.baseUrl = window.BASE_URL || '';
+        this.userPermissions = window.userPermissions || {};
+        this.currentTab = 'organization';
+        this.unsavedChanges = false;
+        this.autoSaveTimer = null;
+        this.validationRules = {};
+
+        this.init();
+    }
+
+    init() {
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.initializeComponents();
+            });
+        } else {
+            this.initializeComponents();
+        }
+    }
+
+    initializeComponents() {
+        this.setupEventListeners();
+        this.setupValidation();
+        this.setupAutoSave();
+        this.restoreActiveTab();
+        this.initializeColorPickers();
+        this.initializeFileUploads();
+        this.setupFormValidation();
+        this.loadDraft();
+    }
+
+    setupEventListeners() {
+        // Tab switching
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tabId = e.currentTarget.dataset.tabId;
+                if (tabId) {
+                    this.switchTab(tabId);
+                }
+            });
+        });
+
+        // Form changes detection
+        document.querySelectorAll('form[action*="/settings/update"] input, form[action*="/settings/update"] select, form[action*="/settings/update"] textarea').forEach(field => {
+            field.addEventListener('change', () => {
+                this.markUnsaved();
+                this.validateField(field);
+            });
+
+            field.addEventListener('input', () => {
+                this.scheduleAutoSave();
+            });
+        });
+
+        // Prevent accidental navigation
+        window.addEventListener('beforeunload', (e) => {
+            if (this.unsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก คุณต้องการออกจากหน้านี้หรือไม่?';
+                return e.returnValue;
+            }
+        });
+
+        // Form submission
+        const mainForm = document.querySelector('form[action*="/settings/update"]');
+        if (mainForm) {
+            mainForm.addEventListener('submit', (e) => {
+                if (!this.validateForm()) {
+                    e.preventDefault();
+                    return false;
+                }
+                this.unsavedChanges = false;
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case 's':
+                        e.preventDefault();
+                        this.saveSettings();
+                        break;
+                    case 'z':
+                        if (e.shiftKey) {
+                            e.preventDefault();
+                            this.redo();
+                        } else {
+                            e.preventDefault();
+                            this.undo();
+                        }
+                        break;
+                }
+            }
+        });
+    }
+
+    setupValidation() {
+        this.validationRules = {
+            'org_email': {
+                pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                message: 'รูปแบบอีเมลไม่ถูกต้อง'
+            },
+            'org_website': {
+                pattern: /^https?:\/\/.+/,
+                message: 'รูปแบบ URL ไม่ถูกต้อง (ต้องขึ้นต้นด้วย http:// หรือ https://)'
+            },
+            'org_phone': {
+                pattern: /^[0-9\-\+\(\)\s]+$/,
+                message: 'รูปแบบเบอร์โทรไม่ถูกต้อง'
+            },
+            'grace_period_minutes': {
+                min: 0,
+                max: 60,
+                message: 'เวลาผ่อนผันต้องอยู่ระหว่าง 0-60 นาที'
+            },
+            'session_timeout': {
+                min: 300,
+                max: 86400,
+                message: 'Session timeout ต้องอยู่ระหว่าง 300-86400 วินาที'
+            },
+            'password_min_length': {
+                min: 6,
+                max: 50,
+                message: 'ความยาวรหัสผ่านต้องอยู่ระหว่าง 6-50 ตัวอักษร'
+            }
+        };
+    }
+
+    setupAutoSave() {
+        this.autoSaveInterval = setInterval(() => {
+            if (this.unsavedChanges) {
+                this.autoSaveDraft();
+            }
+        }, 30000); // Auto-save every 30 seconds
+    }
+
+    switchTab(tabId) {
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+
+        // Remove active class from all tabs
+        document.querySelectorAll('.tab-button').forEach(tab => {
+            tab.classList.remove('active', 'border-indigo-500', 'text-indigo-600', 'bg-indigo-50');
+            tab.classList.add('border-transparent', 'text-gray-500');
+        });
+
+        // Show selected tab content
+        const targetContent = document.getElementById(`content-${tabId}`);
+        if (targetContent) {
+            targetContent.classList.remove('hidden');
+
+            // Add animation
+            targetContent.style.opacity = '0';
+            targetContent.style.transform = 'translateY(10px)';
+
+            requestAnimationFrame(() => {
+                targetContent.style.transition = 'all 0.3s ease-in-out';
+                targetContent.style.opacity = '1';
+                targetContent.style.transform = 'translateY(0)';
+            });
+        } else {
+            console.error('Tab content not found:', `content-${tabId}`);
+        }
+
+        // Add active class to selected tab
+        const activeTab = document.getElementById(`tab-${tabId}`);
+        if (activeTab) {
+            activeTab.classList.add('active', 'border-indigo-500', 'text-indigo-600', 'bg-indigo-50');
+            activeTab.classList.remove('border-transparent', 'text-gray-500');
+        } else {
+            console.error('Tab button not found:', `tab-${tabId}`);
+        }
+
+        // Save active tab
+        this.currentTab = tabId;
+        localStorage.setItem('activeSettingsTab', tabId);
+
+        // Update URL hash
+        if (history.pushState) {
+            history.pushState(null, null, `#${tabId}`);
+        } else {
+            window.location.hash = `#${tabId}`;
+        }
+
+        // Load tab-specific data
+        this.loadTabData(tabId);
+    }
+
+    loadTabData(tabId) {
+        switch (tabId) {
+            case 'work_shifts':
+                this.loadWorkShifts();
+                break;
+            case 'notifications':
+                this.testNotificationSettings();
+                break;
+            case 'security':
+                this.checkSecurityStatus();
+                break;
+        }
+    }
+
+    restoreActiveTab() {
+        const savedTab = window.location.hash.substring(1) || localStorage.getItem('activeSettingsTab');
+        if (savedTab && document.getElementById(`tab-${savedTab}`)) {
+            this.switchTab(savedTab);
+        } else {
+            const firstTab = document.querySelector('.tab-button');
+            if (firstTab) {
+                this.switchTab(firstTab.dataset.tabId);
+            }
+        }
+    }
+
+    initializeColorPickers() {
+        document.querySelectorAll('input[type="color"]').forEach(colorInput => {
+            const textInput = colorInput.nextElementSibling;
+
+            if (textInput && textInput.tagName === 'INPUT' && textInput.type === 'text') {
+                // Sync color picker with text input
+                colorInput.addEventListener('input', () => {
+                    textInput.value = colorInput.value.toUpperCase();
+                    this.previewColorChange(colorInput.name, colorInput.value);
+                });
+
+                // Sync text input with color picker
+                textInput.addEventListener('input', () => {
+                    if (/^#[0-9A-F]{6}$/i.test(textInput.value)) {
+                        colorInput.value = textInput.value;
+                        this.previewColorChange(colorInput.name, textInput.value);
+                    }
+                });
+
+                // Add color suggestions
+                this.addColorSuggestions(colorInput);
+            }
+        });
+    }
+
+    addColorSuggestions(colorInput) {
+        const suggestions = [
+            '#4F46E5', '#7C3AED', '#06B6D4', '#10B981', '#F59E0B',
+            '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'
+        ];
+
+        const container = colorInput.parentElement;
+        const suggestionsDiv = document.createElement('div');
+        suggestionsDiv.className = 'flex gap-1 mt-2';
+
+        suggestions.forEach(color => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-6 h-6 rounded border-2 border-gray-300 hover:border-gray-500 transition-colors';
+            button.style.backgroundColor = color;
+            button.title = color;
+
+            button.addEventListener('click', () => {
+                colorInput.value = color;
+                if (colorInput.nextElementSibling) {
+                    colorInput.nextElementSibling.value = color;
+                }
+                colorInput.dispatchEvent(new Event('change'));
+            });
+
+            suggestionsDiv.appendChild(button);
+        });
+
+        container.appendChild(suggestionsDiv);
+    }
+
+    previewColorChange(colorName, colorValue) {
+        // Apply color change temporarily for preview
+        const root = document.documentElement;
+
+        switch (colorName) {
+            case 'primary_color':
+                root.style.setProperty('--primary-color', colorValue);
+                break;
+            case 'secondary_color':
+                root.style.setProperty('--secondary-color', colorValue);
+                break;
+            case 'accent_color':
+                root.style.setProperty('--accent-color', colorValue);
+                break;
+            case 'sidebar_bg_color':
+                root.style.setProperty('--sidebar-bg-color', colorValue);
+                break;
+            case 'header_bg_color':
+                root.style.setProperty('--header-bg-color', colorValue);
+                break;
+        }
+    }
+
+    initializeFileUploads() {
+        document.querySelectorAll('input[type="file"]').forEach(fileInput => {
+            fileInput.addEventListener('change', (e) => {
+                this.handleFileUpload(e.target);
+            });
+
+            // Add drag and drop
+            this.setupDragAndDrop(fileInput);
+        });
+    }
+
+    setupDragAndDrop(fileInput) {
+        const container = fileInput.closest('div');
+        if (!container) return;
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            container.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            container.addEventListener(eventName, () => {
+                container.classList.add('border-indigo-500', 'bg-indigo-50');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            container.addEventListener(eventName, () => {
+                container.classList.remove('border-indigo-500', 'bg-indigo-50');
+            });
+        });
+
+        container.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+
+    handleFileUpload(fileInput) {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        // Validate file
+        const validation = this.validateFile(file, fileInput.name);
+        if (!validation.valid) {
+            this.showToast(validation.message, 'error');
+            fileInput.value = '';
+            return;
+        }
+
+        // Show preview for images
+        if (file.type.startsWith('image/')) {
+            this.showImagePreview(file, fileInput);
+        }
+
+        // Show upload progress
+        this.showUploadProgress(fileInput);
+    }
+
+    validateFile(file, inputName) {
+        const validations = {
+            'org_logo': {
+                maxSize: 2 * 1024 * 1024, // 2MB
+                allowedTypes: ['image/jpeg', 'image/png', 'image/gif'],
+                allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif']
+            },
+            'favicon': {
+                maxSize: 1 * 1024 * 1024, // 1MB
+                allowedTypes: ['image/x-icon', 'image/png', 'image/jpeg'],
+                allowedExtensions: ['.ico', '.png', '.jpg', '.jpeg']
+            },
+            'login_bg_image': {
+                maxSize: 5 * 1024 * 1024, // 5MB
+                allowedTypes: ['image/jpeg', 'image/png'],
+                allowedExtensions: ['.jpg', '.jpeg', '.png']
+            }
+        };
+
+        const rules = validations[inputName];
+        if (!rules) return { valid: true };
+
+        // Check file size
+        if (file.size > rules.maxSize) {
+            return {
+                valid: false,
+                message: `ไฟล์มีขนาดใหญ่เกินไป (สูงสุด ${rules.maxSize / 1024 / 1024}MB)`
+            };
+        }
+
+        // Check file type
+        if (!rules.allowedTypes.includes(file.type)) {
+            return {
+                valid: false,
+                message: `ประเภทไฟล์ไม่ถูกต้อง (อนุญาต: ${rules.allowedExtensions.join(', ')})`
+            };
+        }
+
+        return { valid: true };
+    }
+
+    showImagePreview(file, fileInput) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const container = fileInput.closest('.space-y-4');
+            if (!container) return;
+
+            let preview = container.querySelector('.file-preview');
+            if (!preview) {
+                preview = document.createElement('div');
+                preview.className = 'file-preview mt-3 p-3 border border-gray-300 rounded-lg bg-gray-50';
+                container.appendChild(preview);
+            }
+
+            preview.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <img src="${e.target.result}" alt="Preview" class="w-16 h-16 object-cover rounded border">
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-700">ตัวอย่างไฟล์ใหม่</p>
+                        <p class="text-xs text-gray-500">${file.name} (${(file.size / 1024).toFixed(1)} KB)</p>
+                    </div>
+                    <button type="button" onclick="this.parentElement.parentElement.remove()" 
+                            class="text-red-500 hover:text-red-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    showUploadProgress(fileInput) {
+        const container = fileInput.closest('.space-y-4');
+        if (!container) return;
+        
+        let indicator = container.querySelector('.upload-progress');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'upload-progress mt-2 text-xs text-blue-600';
+            container.appendChild(indicator);
+        }
+        indicator.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>เตรียมอัปโหลด...';
+
+        setTimeout(() => {
+            indicator.remove();
+        }, 2000);
+    }
+
+    setupFormValidation() {
+        // Real-time validation
+        document.querySelectorAll('form[action*="/settings/update"] input, form[action*="/settings/update"] select, form[action*="/settings/update"] textarea').forEach(field => {
+            field.addEventListener('blur', () => {
+                this.validateField(field);
+            });
+        });
+    }
+
+    validateField(field) {
+        const fieldName = field.name;
+        const value = field.value;
+        const rules = this.validationRules[fieldName];
+
+        let isValid = true;
+        let message = '';
+
+        // Required validation
+        if (field.hasAttribute('required') && !value.trim()) {
+            isValid = false;
+            message = 'ข้อมูลนี้จำเป็นต้องกรอก';
+        }
+
+        if (isValid && rules) {
+            // Pattern validation
+            if (rules.pattern && value && !rules.pattern.test(value)) {
+                isValid = false;
+                message = rules.message;
+            }
+
+            // Min/Max validation for numbers
+            if (field.type === 'number' && value) {
+                const numValue = parseFloat(value);
+                if (rules.min !== undefined && numValue < rules.min) {
+                    isValid = false;
+                    message = rules.message;
+                }
+                if (rules.max !== undefined && numValue > rules.max) {
+                    isValid = false;
+                    message = rules.message;
+                }
+            }
+        }
+
+        // Update field appearance
+        if (isValid) {
+            field.classList.remove('border-red-500');
+            this.hideFieldError(field);
+        } else {
+            field.classList.add('border-red-500');
+            this.showFieldError(field, message);
+        }
+
+        return isValid;
+    }
+    
+    validateForm() {
+        let isFormValid = true;
+        const fieldsToValidate = document.querySelectorAll('form[action*="/settings/update"] input, form[action*="/settings/update"] select, form[action*="/settings/update"] textarea');
+
+        fieldsToValidate.forEach(field => {
+            if (!this.validateField(field)) {
+                isFormValid = false;
+            }
+        });
+        
+        if (!isFormValid) {
+            const firstInvalid = document.querySelector('.border-red-500');
+            if (firstInvalid) {
+                firstInvalid.focus();
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        return isFormValid;
+    }
+
+    showFieldError(field, message) {
+        const container = field.parentElement;
+        this.hideFieldError(field); // Remove existing error first
+
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'field-error text-sm text-red-600 mt-1';
+        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i>${message}`;
+
+        container.appendChild(errorDiv);
+    }
+
+    hideFieldError(field) {
+        const container = field.parentElement;
+        const existing = container.querySelector('.field-error');
+        if (existing) {
+            existing.remove();
+        }
+    }
+
+    markUnsaved() {
+        this.unsavedChanges = true;
+        const saveButton = document.querySelector('button[type="submit"]');
+        if (saveButton && !saveButton.classList.contains('pulse')) {
+            saveButton.classList.add('pulse', 'bg-yellow-500', 'hover:bg-yellow-600');
+            saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>บันทึกการเปลี่ยนแปลง *';
+        }
+    }
+
+    scheduleAutoSave() {
+        clearTimeout(this.autoSaveTimer);
+        this.autoSaveTimer = setTimeout(() => {
+            this.autoSaveDraft();
+        }, 5000);
+    }
+
+    autoSaveDraft() {
+        if (!this.unsavedChanges) return;
+
+        const formData = new FormData(document.querySelector('form[action*="/settings/update"]'));
+        const data = Object.fromEntries(formData.entries());
+
+        localStorage.setItem('settingsDraft', JSON.stringify({
+            data: data,
+            timestamp: Date.now(),
+            tab: this.currentTab
+        }));
+
+        this.showToast('บันทึกฉบับร่างแล้ว', 'info', 2000);
+    }
+
+    loadDraft() {
+        const draft = localStorage.getItem('settingsDraft');
+        if (!draft) return;
+
+        try {
+            const { data, timestamp, tab } = JSON.parse(draft);
+
+            if (Date.now() - timestamp > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem('settingsDraft');
+                return;
+            }
+
+            if (confirm('พบข้อมูลที่ยังไม่ได้บันทึกจากครั้งก่อน ต้องการเรียกคืนหรือไม่?')) {
+                Object.keys(data).forEach(key => {
+                    const field = document.querySelector(`[name="${key}"]`);
+                    if (field) {
+                        if(field.type === 'checkbox' || field.type === 'radio') {
+                            field.checked = field.value === data[key];
+                        } else {
+                            field.value = data[key];
+                        }
+                        field.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+
+                this.switchTab(tab);
+                this.markUnsaved();
+                this.showToast('กู้คืนข้อมูลฉบับร่างแล้ว', 'success');
+            } else {
+                localStorage.removeItem('settingsDraft');
+            }
+        } catch (e) {
+            console.error('Error loading draft:', e);
+            localStorage.removeItem('settingsDraft');
+        }
+    }
+
+    saveSettings() {
+        const form = document.querySelector('form[action*="/settings/update"]');
+        if (form && this.validateForm()) {
+            this.showLoading();
+            this.unsavedChanges = false;
+            localStorage.removeItem('settingsDraft');
+            form.submit();
+        }
+    }
+
+    // Work Shifts Management
+    loadWorkShifts() {
+        console.log('Loading work shifts data...');
+    }
+
+    createShift(formData) {
+        this.handleShiftFormSubmit(formData, `${this.baseUrl}/settings/createShift`, 'สร้างกะการทำงานสำเร็จ');
+    }
+
+    updateShift(formData) {
+        this.handleShiftFormSubmit(formData, `${this.baseUrl}/settings/updateShift`, 'อัปเดตกะการทำงานสำเร็จ');
+    }
+    
+    handleShiftFormSubmit(formData, url, successMessage) {
+        this.showLoading();
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                this.showToast(successMessage, 'success');
+                this.closeShiftModal();
+                window.location.reload();
+            } else {
+                this.showToast(data.message || 'เกิดข้อผิดพลาด', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Shift form error:', error);
+            this.showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+        })
+        .finally(() => this.hideLoading());
+    }
+
+    showShiftModal(mode = 'create', shiftData = {}) {
+        const modal = document.getElementById('shift-modal');
+        const title = document.getElementById('shift-modal-title');
+        const form = document.getElementById('shift-form');
+
+        form.reset();
+        document.getElementById('shift-id').value = '';
+
+        if (mode === 'create') {
+            title.textContent = 'เพิ่มกะการทำงานใหม่';
+            form.action = `${this.baseUrl}/settings/createShift`;
+            document.getElementById('shift-is-active').checked = true;
+        } else {
+            title.textContent = 'แก้ไขกะการทำงาน';
+            form.action = `${this.baseUrl}/settings/updateShift`;
+            this.populateShiftForm(shiftData);
+        }
+
+        modal.classList.remove('hidden');
+    }
+    
+    populateShiftForm(shift) {
+        document.getElementById('shift-id').value = shift.id;
+        document.getElementById('shift-name').value = shift.shift_name;
+        document.getElementById('shift-start-time').value = shift.start_time;
+        document.getElementById('shift-end-time').value = shift.end_time;
+        document.getElementById('shift-break-start').value = shift.break_start || '';
+        document.getElementById('shift-break-end').value = shift.break_end || '';
+        document.getElementById('shift-is-active').checked = shift.is_active == 1;
+
+        const workDays = shift.work_days ? shift.work_days.split(',') : [];
+        document.querySelectorAll('input[name="work_days[]"]').forEach(checkbox => {
+            checkbox.checked = workDays.includes(checkbox.value);
+        });
+    }
+
+    closeShiftModal() {
+        document.getElementById('shift-modal').classList.add('hidden');
+    }
+
+    // Utility Functions
+    showToast(message, type = 'info', duration = 5000) {
+        const toastContainer = document.getElementById('toast-container') || this.createToastContainer();
+        const toast = document.createElement('div');
+        toast.className = `flex items-center p-4 mb-4 text-sm rounded-lg shadow-lg transform transition-all duration-300 translate-x-full`;
+
+        const styles = {
+            success: { bg: 'bg-green-100', text: 'text-green-700', icon: 'fas fa-check-circle' },
+            error: { bg: 'bg-red-100', text: 'text-red-700', icon: 'fas fa-exclamation-circle' },
+            warning: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'fas fa-exclamation-triangle' },
+            info: { bg: 'bg-blue-100', text: 'text-blue-700', icon: 'fas fa-info-circle' }
+        };
+        const style = styles[type] || styles.info;
+        
+        toast.classList.add(style.bg, style.text);
+        toast.innerHTML = `
+            <i class="${style.icon} mr-3"></i>
+            <span>${message}</span>
+            <button type="button" class="ml-auto -mx-1.5 -my-1.5 rounded-lg p-1.5 inline-flex h-8 w-8 hover:bg-gray-200" onclick="this.parentElement.remove()">
+                <span class="sr-only">Close</span>
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        toastContainer.appendChild(toast);
+
+        requestAnimationFrame(() => toast.classList.remove('translate-x-full'));
+
+        setTimeout(() => {
+            toast.classList.add('opacity-0');
+            toast.addEventListener('transitionend', () => toast.remove());
+        }, duration);
+    }
+    
+    createToastContainer() {
+        const container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'fixed top-5 right-5 z-50 w-full max-w-xs';
+        document.body.appendChild(container);
+        return container;
+    }
+
+    showLoading() {
+        let overlay = document.getElementById('loading-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'loading-overlay';
+            overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]';
+            overlay.innerHTML = `<div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>`;
+            document.body.appendChild(overlay);
+        }
+        overlay.classList.remove('hidden');
+    }
+
+    hideLoading() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.classList.add('hidden');
+    }
+
+    confirmAction(message, callback) {
+        if (confirm(message)) {
+            callback();
+        }
+    }
+
+    // Security Functions
+    checkSecurityStatus() {
+        // ...
+    }
+
+    // Theme Functions
+    resetColor(colorKey) {
+        const defaults = {
+            'primary_color': '#4f46e5', 'secondary_color': '#7c3aed', 'accent_color': '#06b6d4',
+            'sidebar_bg_color': '#1f2937', 'header_bg_color': '#ffffff'
+        };
+        if (defaults[colorKey]) {
+            const colorInput = document.getElementById(colorKey);
+            if (colorInput) {
+                colorInput.value = defaults[colorKey];
+                colorInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    }
+
+    resetThemeColors() {
+        this.confirmAction('คุณต้องการรีเซ็ตสีธีมทั้งหมดเป็นค่าเริ่มต้นหรือไม่?', () => {
+            Object.keys({
+                'primary_color': '', 'secondary_color': '', 'accent_color': '',
+                'sidebar_bg_color': '', 'header_bg_color': ''
+            }).forEach(key => this.resetColor(key));
+            this.showToast('รีเซ็ตสีธีมเรียบร้อยแล้ว', 'success');
+        });
+    }
+
+    previewTheme() {
+        // ...
+    }
+
+    // Cleanup
+    destroy() {
+        if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
+        if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
+    }
+}
+
+// --- Global Functions for inline HTML onclick events ---
+document.addEventListener('DOMContentLoaded', function() {
+    window.settingsManager = new SettingsManager();
+});
+
+function exportSettings() {
+    if (window.settingsManager && window.settingsManager.userPermissions.can_export_data) {
+        window.location.href = `${window.settingsManager.baseUrl}/settings/export`;
+    } else {
+        window.settingsManager.showToast('คุณไม่มีสิทธิ์ส่งออกข้อมูล', 'error');
+    }
+}
+
+function resetSettings() {
+    if (window.settingsManager && window.settingsManager.userPermissions.can_manage_settings) {
+        window.settingsManager.confirmAction('คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตการตั้งค่าทั้งหมดเป็นค่าเริ่มต้น? การกระทำนี้ไม่สามารถย้อนกลับได้', () => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `${window.settingsManager.baseUrl}/settings/reset`;
+            document.body.appendChild(form);
+            form.submit();
+        });
+    } else {
+        window.settingsManager.showToast('คุณไม่มีสิทธิ์รีเซ็ตการตั้งค่า', 'error');
+    }
+}
+
+function previewTheme() {
+    if (window.settingsManager) window.settingsManager.previewTheme();
+}
+
+function resetThemeColors() {
+    if (window.settingsManager) window.settingsManager.resetThemeColors();
+}
+
+function resetColor(key) {
+    if (window.settingsManager) window.settingsManager.resetColor(key);
+}
+
+function showCreateShiftModal() {
+    if (window.settingsManager) window.settingsManager.showShiftModal('create');
+}
+
+function editShift(shiftId) {
+    if (window.settingsManager) {
+        // This needs to fetch shift data first, then open modal.
+        // For now, let's assume it's handled inside the class or needs an API call.
+        console.log(`Request to edit shift ${shiftId}`);
+        // Example of fetching data before opening modal:
+        // fetch(`${window.settingsManager.baseUrl}/api/shifts/${shiftId}`)
+        //     .then(res => res.json())
+        //     .then(data => {
+        //         if(data.success) {
+        //             window.settingsManager.showShiftModal('edit', data.shift);
+        //         }
+        //     });
+    }
+}
+
+function closeShiftModal() {
+    if (window.settingsManager) window.settingsManager.closeShiftModal();
+}

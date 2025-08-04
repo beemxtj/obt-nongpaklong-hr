@@ -1,0 +1,10 @@
+RewriteEngine On
+
+# ===== จุดที่แก้ไข =====
+# เปลี่ยน RewriteBase ให้ตรงกับชื่อโฟลเดอร์โปรเจกต์ของคุณ
+RewriteBase /obt-nongpaklong-hr/
+
+# หากไม่ใช่ไฟล์หรือไดเรกทอรีที่มีอยู่จริง ให้ส่งต่อไปที่ index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
